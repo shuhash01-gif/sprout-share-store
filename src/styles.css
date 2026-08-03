@@ -152,5 +152,30 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 }
+
+@utility label-caps {
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+@utility paper {
+  background-image: radial-gradient(
+    oklch(0.62 0.06 70 / 0.09) 1px,
+    transparent 1px
+  );
+  background-size: 14px 14px;
+}
+
