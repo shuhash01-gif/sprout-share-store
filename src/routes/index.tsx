@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Leaf, Minus, Plus, ShoppingBasket, Trash2 } from "lucide-react";
+import { Leaf, Minus, Plus, ShoppingBasket, Trash2, Truck, ShieldCheck, Sprout } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -23,17 +23,17 @@ import { Separator } from "@/components/ui/separator";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Fieldnote Seed Co. — Small-Batch Seed Mixes" },
+      { title: "Healthio — ফ্রেশ ও খাঁটি সিডস, বাদাম ও শুকনো ফল" },
       {
         name: "description",
         content:
-          "Six small-batch seed mixes for snacking, sprouting, gardening and backyard birds. Milled fresh, packed in Vermont, shipped within two days.",
+          "Healthio থেকে অর্ডার করুন ফ্রেশ ও খাঁটি পাম্পকিন সিড, সানফ্লাওয়ার সিড, কাঠবাদাম, কাজুবাদাম, ফ্ল্যাক্স সিড, তিল, কিশমিশ ও খেজুর। সারা দেশে ক্যাশ অন ডেলিভারি।",
       },
-      { property: "og:title", content: "Fieldnote Seed Co. — Small-Batch Seed Mixes" },
+      { property: "og:title", content: "Healthio — ফ্রেশ ও খাঁটি সিডস ও বাদাম" },
       {
         property: "og:description",
         content:
-          "Browse and order small-batch seed mixes for snacking, sprouting, gardening and backyard birds.",
+          "৮টি প্রিমিয়াম আইটেম — সিডস, বাদাম ও শুকনো ফল। ঘরে বসেই অর্ডার করুন Healthio থেকে।",
       },
     ],
   }),
@@ -41,24 +41,36 @@ export const Route = createFileRoute("/")({
 });
 
 const orderSchema = z.object({
-  name: z.string().trim().min(2, "Please enter your full name").max(100),
-  email: z.string().trim().email("Enter a valid email address").max(255),
-  address: z.string().trim().min(10, "Please enter a full shipping address").max(300),
+  name: z.string().trim().min(2, "আপনার পুরো নাম লিখুন").max(100),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^01[3-9]\d{8}$/, "সঠিক মোবাইল নম্বর দিন (যেমন ০১৭XXXXXXXX)"),
+  address: z.string().trim().min(10, "সম্পূর্ণ ডেলিভারি ঠিকানা লিখুন").max(300),
   notes: z.string().trim().max(500).optional(),
 });
 
-const money = (cents: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents);
+const money = (amount: number) =>
+  new Intl.NumberFormat("bn-BD", {
+    style: "currency",
+    currency: "BDT",
+    maximumFractionDigits: 0,
+  }).format(amount);
+
+const bn = (n: number) => new Intl.NumberFormat("bn-BD").format(n);
+
+const FREE_SHIPPING = 1500;
+const DELIVERY_FEE = 70;
 
 function Storefront() {
-  const [filter, setFilter] = useState<Category | "All">("All");
+  const [filter, setFilter] = useState<Category | "সব">("সব");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", address: "", notes: "" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", notes: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const visible = useMemo(
-    () => (filter === "All" ? products : products.filter((p) => p.category === filter)),
+    () => (filter === "সব" ? products : products.filter((p) => p.category === filter)),
     [filter],
   );
 
@@ -72,11 +84,11 @@ function Storefront() {
 
   const count = lines.reduce((n, l) => n + l.qty, 0);
   const subtotal = lines.reduce((n, l) => n + l.qty * l.product.price, 0);
-  const shipping = count === 0 || subtotal >= 50 ? 0 : 6;
+  const shipping = count === 0 || subtotal >= FREE_SHIPPING ? 0 : DELIVERY_FEE;
 
   const add = (id: string, name: string) => {
     setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-    toast.success(`${name} added to your basket`);
+    toast.success(`${name} ব্যাগে যোগ হয়েছে`);
   };
 
   const setQty = (id: string, qty: number) =>
@@ -99,9 +111,9 @@ function Storefront() {
     }
     setErrors({});
     setCart({});
-    setForm({ name: "", email: "", address: "", notes: "" });
+    setForm({ name: "", phone: "", address: "", notes: "" });
     setCartOpen(false);
-    toast.success("Order placed — we'll email your packing slip shortly.");
+    toast.success("অর্ডার সম্পন্ন হয়েছে — আমরা শীঘ্রই ফোনে কনফার্ম করব।");
   };
 
   return (
@@ -111,39 +123,39 @@ function Storefront() {
           <a href="#top" className="flex items-center gap-2">
             <Leaf className="size-5 text-primary" aria-hidden="true" />
             <span className="font-display text-lg font-semibold tracking-tight">
-              Fieldnote Seed Co.
+              HEALTHIO
             </span>
           </a>
           <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
             <a href="#catalog" className="transition-colors hover:text-foreground">
-              Catalog
+              পণ্য
             </a>
             <a href="#order" className="transition-colors hover:text-foreground">
-              Order
+              অর্ডার করুন
             </a>
           </nav>
           <Sheet open={cartOpen} onOpenChange={setCartOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
                 <ShoppingBasket className="size-4" aria-hidden="true" />
-                Basket
+                ব্যাগ
                 <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-                  {count}
+                  {bn(count)}
                 </span>
               </Button>
             </SheetTrigger>
             <SheetContent className="flex w-full flex-col gap-0 sm:max-w-md">
               <SheetHeader>
-                <SheetTitle className="font-display text-xl">Your basket</SheetTitle>
+                <SheetTitle className="font-display text-xl">আপনার ব্যাগ</SheetTitle>
                 <SheetDescription>
-                  Free shipping on orders over {money(50)}.
+                  {money(FREE_SHIPPING)} টাকার বেশি অর্ডারে ডেলিভারি ফ্রি।
                 </SheetDescription>
               </SheetHeader>
 
               <div className="flex-1 overflow-y-auto px-4">
                 {lines.length === 0 ? (
                   <p className="py-10 text-sm text-muted-foreground">
-                    Nothing here yet. Pick a mix from the catalog.
+                    এখনো কিছু নেই। পণ্যের তালিকা থেকে পছন্দের আইটেম যোগ করুন।
                   </p>
                 ) : (
                   <ul className="divide-y divide-border">
@@ -153,8 +165,8 @@ function Storefront() {
                           src={product.image}
                           alt={product.name}
                           loading="lazy"
-                          width={800}
-                          height={800}
+                          width={1024}
+                          height={1024}
                           className="size-16 shrink-0 rounded-sm object-cover"
                         />
                         <div className="min-w-0 flex-1">
@@ -166,18 +178,18 @@ function Storefront() {
                               variant="outline"
                               size="icon"
                               className="size-7"
-                              aria-label={`Decrease ${product.name}`}
+                              aria-label={`${product.name} কমান`}
                               onClick={() => setQty(product.id, qty - 1)}
                             >
                               <Minus className="size-3" />
                             </Button>
-                            <span className="w-6 text-center text-sm">{qty}</span>
+                            <span className="w-6 text-center text-sm">{bn(qty)}</span>
                             <Button
                               type="button"
                               variant="outline"
                               size="icon"
                               className="size-7"
-                              aria-label={`Increase ${product.name}`}
+                              aria-label={`${product.name} বাড়ান`}
                               onClick={() => setQty(product.id, qty + 1)}
                             >
                               <Plus className="size-3" />
@@ -187,7 +199,7 @@ function Storefront() {
                               variant="ghost"
                               size="icon"
                               className="size-7 text-muted-foreground"
-                              aria-label={`Remove ${product.name}`}
+                              aria-label={`${product.name} বাদ দিন`}
                               onClick={() => setQty(product.id, 0)}
                             >
                               <Trash2 className="size-3.5" />
@@ -204,16 +216,16 @@ function Storefront() {
               <div className="border-t border-border bg-secondary/50 p-4">
                 <dl className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Subtotal</dt>
+                    <dt className="text-muted-foreground">সাবটোটাল</dt>
                     <dd>{money(subtotal)}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Shipping</dt>
-                    <dd>{shipping === 0 ? "Free" : money(shipping)}</dd>
+                    <dt className="text-muted-foreground">ডেলিভারি চার্জ</dt>
+                    <dd>{shipping === 0 ? "ফ্রি" : money(shipping)}</dd>
                   </div>
                   <Separator className="my-2" />
                   <div className="flex justify-between text-base font-semibold">
-                    <dt>Total</dt>
+                    <dt>সর্বমোট</dt>
                     <dd>{money(subtotal + shipping)}</dd>
                   </div>
                 </dl>
@@ -225,7 +237,7 @@ function Storefront() {
                     document.getElementById("order")?.scrollIntoView({ behavior: "smooth" });
                   }}
                 >
-                  Continue to order details
+                  অর্ডার সম্পন্ন করুন
                 </Button>
               </div>
             </SheetContent>
@@ -237,43 +249,60 @@ function Storefront() {
         <section className="relative overflow-hidden border-b border-border">
           <img
             src={heroSeeds}
-            alt="Assorted seed mixes in linen sacks on a wooden table"
+            alt="জারে সাজানো নানা রকম বীজ, বাদাম ও শুকনো ফল"
             width={1600}
             height={1104}
             className="absolute inset-0 size-full object-cover"
           />
           <div className="absolute inset-0 bg-bark/70" />
-          <div className="relative mx-auto max-w-6xl px-6 py-28 md:py-36">
-            <p className="label-caps text-husk">Small batch · Vermont</p>
-            <h1 className="mt-4 max-w-2xl text-4xl leading-[1.05] text-seed-foreground md:text-6xl">
-              Seed mixes blended by the pound, not the pallet.
+          <div className="relative mx-auto max-w-6xl px-6 py-24 md:py-32">
+            <p className="label-caps text-husk">ছোট্ট বীজ · বিশাল উপকার</p>
+            <h1 className="mt-4 max-w-2xl text-4xl leading-[1.15] text-seed-foreground md:text-6xl">
+              ফ্রেশ ও খাঁটি সিডস, বাদাম আর শুকনো ফল
             </h1>
             <p className="mt-5 max-w-xl text-base text-husk md:text-lg">
-              Six honest blends for snacking, sprouting, the vegetable bed and the birds
-              outside the window. Milled to order and shipped within two days.
+              ফাইবার, প্রোটিন ও ওমেগা-৩ এ ভরপুর ৮টি প্রিমিয়াম আইটেম। স্মুদি, দই বা সালাদের
+              সাথে মিশিয়ে খেতে পারেন প্রতিদিন — Healthio, Fuel Your Day The Natural Way।
             </p>
             <div className="mt-8">
               <Button
                 size="lg"
-                className="gap-2"
                 onClick={() =>
                   document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth" })
                 }
               >
-                Browse the catalog
+                পণ্য দেখুন
               </Button>
             </div>
           </div>
         </section>
 
+        <section className="border-b border-border bg-card">
+          <ul className="mx-auto grid max-w-6xl gap-6 px-6 py-8 sm:grid-cols-3">
+            {[
+              { icon: Sprout, title: "১০০% খাঁটি ও ফ্রেশ", text: "কোনো ভেজাল বা প্রিজারভেটিভ নেই" },
+              { icon: Truck, title: "সারা দেশে ডেলিভারি", text: "ঢাকায় ২৪ ঘণ্টা, বাইরে ২-৩ দিন" },
+              { icon: ShieldCheck, title: "ক্যাশ অন ডেলিভারি", text: "পণ্য হাতে পেয়ে টাকা দিন" },
+            ].map((f) => (
+              <li key={f.title} className="flex items-start gap-3">
+                <f.icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold">{f.title}</p>
+                  <p className="text-sm text-muted-foreground">{f.text}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section id="catalog" className="paper mx-auto max-w-6xl scroll-mt-20 px-6 py-20">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="label-caps text-muted-foreground">The catalog</p>
-              <h2 className="mt-2 text-3xl md:text-4xl">Six mixes, nothing filler</h2>
+              <p className="label-caps text-muted-foreground">আমাদের পণ্য</p>
+              <h2 className="mt-2 text-3xl md:text-4xl">৮টি আইটেম, সবই বাছাই করা</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(["All", ...categories] as const).map((c) => (
+              {(["সব", ...categories] as const).map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -300,8 +329,8 @@ function Storefront() {
                   src={p.image}
                   alt={p.name}
                   loading="lazy"
-                  width={800}
-                  height={800}
+                  width={1024}
+                  height={1024}
                   className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
                 <div className="flex flex-1 flex-col p-5">
@@ -313,13 +342,20 @@ function Storefront() {
                     {p.category} · {p.weight}
                   </p>
                   <p className="mt-3 text-sm text-muted-foreground">{p.blurb}</p>
-                  <p className="mt-3 text-xs leading-relaxed text-foreground/70">{p.contents}</p>
+                  <ul className="mt-3 space-y-1 text-xs leading-relaxed text-foreground/70">
+                    {p.benefits.map((b) => (
+                      <li key={b} className="flex gap-2">
+                        <span className="text-primary">•</span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
                   <Button
                     variant="secondary"
                     className="mt-5 w-full"
                     onClick={() => add(p.id, p.name)}
                   >
-                    Add to basket
+                    ব্যাগে যোগ করুন
                   </Button>
                 </div>
               </li>
@@ -330,32 +366,32 @@ function Storefront() {
         <section id="order" className="scroll-mt-20 border-t border-border bg-secondary/40">
           <div className="mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-[1fr_1fr]">
             <div>
-              <p className="label-caps text-muted-foreground">Place your order</p>
-              <h2 className="mt-2 text-3xl md:text-4xl">Tell us where it's going</h2>
+              <p className="label-caps text-muted-foreground">অর্ডার করুন</p>
+              <h2 className="mt-2 text-3xl md:text-4xl">ঠিকানাটা জানিয়ে দিন</h2>
               <p className="mt-4 max-w-md text-sm text-muted-foreground">
-                We blend and pack the morning after your order lands, then send tracking by
-                email. Orders over {money(50)} ship free anywhere in the continental US.
+                অর্ডার পাওয়ার পর আমরা ফোনে কনফার্ম করে পণ্য প্যাক করি। {money(FREE_SHIPPING)}{" "}
+                টাকার বেশি অর্ডারে সারা দেশে ডেলিভারি একদম ফ্রি।
               </p>
 
               <div className="mt-8 rounded-sm border border-border bg-card p-5">
-                <h3 className="text-base">Order summary</h3>
+                <h3 className="text-base">অর্ডার সামারি</h3>
                 {lines.length === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Your basket is empty — add a mix from the catalog above.
+                    আপনার ব্যাগ খালি — উপরের তালিকা থেকে পণ্য যোগ করুন।
                   </p>
                 ) : (
                   <ul className="mt-3 space-y-2 text-sm">
                     {lines.map(({ product, qty }) => (
                       <li key={product.id} className="flex justify-between gap-3">
                         <span className="text-muted-foreground">
-                          {qty} × {product.name}
+                          {bn(qty)} × {product.name}
                         </span>
                         <span>{money(product.price * qty)}</span>
                       </li>
                     ))}
                     <Separator className="my-2" />
                     <li className="flex justify-between font-semibold">
-                      <span>Total</span>
+                      <span>সর্বমোট</span>
                       <span>{money(subtotal + shipping)}</span>
                     </li>
                   </ul>
@@ -366,7 +402,7 @@ function Storefront() {
             <form onSubmit={placeOrder} className="rounded-sm border border-border bg-card p-6">
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full name</Label>
+                  <Label htmlFor="name">পুরো নাম</Label>
                   <Input
                     id="name"
                     value={form.name}
@@ -376,42 +412,47 @@ function Storefront() {
                   {errors['name'] && <p className="text-xs text-destructive">{errors['name']}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="phone">মোবাইল নম্বর</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={form.email}
-                    maxLength={255}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    id="phone"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="০১৭XXXXXXXX"
+                    value={form.phone}
+                    maxLength={14}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   />
-                  {errors['email'] && <p className="text-xs text-destructive">{errors['email']}</p>}
+                  {errors['phone'] && <p className="text-xs text-destructive">{errors['phone']}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address">Shipping address</Label>
+                  <Label htmlFor="address">ডেলিভারি ঠিকানা</Label>
                   <Textarea
                     id="address"
                     rows={3}
                     value={form.address}
                     maxLength={300}
+                    placeholder="বাসা, রোড, এলাকা, থানা, জেলা"
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
                   />
-                  {errors['address'] && <p className="text-xs text-destructive">{errors['address']}</p>}
+                  {errors['address'] && (
+                    <p className="text-xs text-destructive">{errors['address']}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes (optional)</Label>
+                  <Label htmlFor="notes">অতিরিক্ত নোট (ঐচ্ছিক)</Label>
                   <Textarea
                     id="notes"
                     rows={2}
                     value={form.notes}
                     maxLength={500}
-                    placeholder="Gift wrap, delivery instructions, grind preference…"
+                    placeholder="গিফট র‍্যাপ, ডেলিভারির সময় বা অন্য কোনো নির্দেশনা…"
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
                 <Button type="submit" size="lg" className="w-full" disabled={lines.length === 0}>
                   {lines.length === 0
-                    ? "Add a mix to order"
-                    : `Place order · ${money(subtotal + shipping)}`}
+                    ? "আগে পণ্য যোগ করুন"
+                    : `অর্ডার কনফার্ম করুন · ${money(subtotal + shipping)}`}
                 </Button>
               </div>
             </form>
@@ -421,8 +462,8 @@ function Storefront() {
 
       <footer className="border-t border-border py-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 text-sm text-muted-foreground">
-          <span>Fieldnote Seed Co. · Montpelier, Vermont</span>
-          <span>hello@fieldnoteseed.co</span>
+          <span>Healthio · Fuel Your Day, The Natural Way</span>
+          <span>ফোন: ০১৭০০-০০০০০০</span>
         </div>
       </footer>
     </div>
