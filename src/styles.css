@@ -19,8 +19,8 @@
  */
 
 @theme inline {
-  --font-display: "Fraunces", Georgia, serif;
-  --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Baloo Da 2", "Hind Siliguri", Georgia, serif;
+  --font-sans: "Hind Siliguri", ui-sans-serif, system-ui, sans-serif;
   --color-seed: var(--seed);
   --color-seed-foreground: var(--seed-foreground);
   --color-husk: var(--husk);
