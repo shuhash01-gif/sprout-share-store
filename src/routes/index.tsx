@@ -373,7 +373,7 @@ function Storefront() {
                     maxLength={100}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                   />
-                  {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                  {errors['name'] && <p className="text-xs text-destructive">{errors['name']}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -384,7 +384,7 @@ function Storefront() {
                     maxLength={255}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                   />
-                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                  {errors['email'] && <p className="text-xs text-destructive">{errors['email']}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Shipping address</Label>
@@ -395,7 +395,7 @@ function Storefront() {
                     maxLength={300}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
                   />
-                  {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
+                  {errors['address'] && <p className="text-xs text-destructive">{errors['address']}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes (optional)</Label>
