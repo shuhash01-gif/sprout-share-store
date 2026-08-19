@@ -18,6 +18,7 @@ export type Product = {
   price: number;
   category: Category;
   image: string;
+  stock: number;
 };
 
 export const categories: Category[] = ["বীজ", "বাদাম", "শুকনো ফল"];
@@ -32,6 +33,7 @@ export const products: Product[] = [
     price: 450,
     category: "বীজ",
     image: pumpkin,
+    stock: 24,
   },
   {
     id: "sunflower-seeds",
@@ -42,6 +44,7 @@ export const products: Product[] = [
     price: 380,
     category: "বীজ",
     image: sunflower,
+    stock: 18,
   },
   {
     id: "flax-seeds",
@@ -52,6 +55,7 @@ export const products: Product[] = [
     price: 320,
     category: "বীজ",
     image: flax,
+    stock: 30,
   },
   {
     id: "sesame-seeds",
@@ -62,6 +66,7 @@ export const products: Product[] = [
     price: 290,
     category: "বীজ",
     image: sesame,
+    stock: 4,
   },
   {
     id: "almonds",
@@ -72,6 +77,7 @@ export const products: Product[] = [
     price: 1150,
     category: "বাদাম",
     image: almond,
+    stock: 12,
   },
   {
     id: "cashews",
@@ -82,6 +88,7 @@ export const products: Product[] = [
     price: 1350,
     category: "বাদাম",
     image: cashew,
+    stock: 0,
   },
   {
     id: "raisins",
@@ -92,6 +99,7 @@ export const products: Product[] = [
     price: 520,
     category: "শুকনো ফল",
     image: raisin,
+    stock: 20,
   },
   {
     id: "dates",
@@ -102,5 +110,6 @@ export const products: Product[] = [
     price: 780,
     category: "শুকনো ফল",
     image: dates,
+    stock: 9,
   },
 ];
