@@ -1,11 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Leaf, Minus, Plus, ShoppingBasket, Trash2, Truck, ShieldCheck, Sprout } from "lucide-react";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import heroSeeds from "@/assets/hero-seeds.jpg";
+import { ProductCard } from "@/components/product-card";
 import { categories, products, type Category } from "@/data/products";
+import { useCart } from "@/lib/cart";
+import { bn, DELIVERY_TIME, FREE_SHIPPING, money } from "@/lib/shop";
+import { ORDER_KEY, type PlacedOrder } from "./order.success";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,55 +53,32 @@ const orderSchema = z.object({
   notes: z.string().trim().max(500).optional(),
 });
 
-const money = (amount: number) =>
-  new Intl.NumberFormat("bn-BD", {
-    style: "currency",
-    currency: "BDT",
-    maximumFractionDigits: 0,
-  }).format(amount);
-
-const bn = (n: number) => new Intl.NumberFormat("bn-BD").format(n);
-
-const FREE_SHIPPING = 1500;
-const DELIVERY_FEE = 70;
+const orderId = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
+  let out = "";
+  for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return `HLT-${out}`;
+};
 
 function Storefront() {
+  const navigate = useNavigate();
+  const { lines, count, subtotal, shipping, total, add, setQty, clear } = useCart();
   const [filter, setFilter] = useState<Category | "সব">("সব");
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [inStockOnly, setInStockOnly] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", address: "", notes: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const visible = useMemo(
-    () => (filter === "সব" ? products : products.filter((p) => p.category === filter)),
-    [filter],
-  );
-
-  const lines = useMemo(
     () =>
-      Object.entries(cart)
-        .map(([id, qty]) => ({ product: products.find((p) => p.id === id)!, qty }))
-        .filter((l) => l.product),
-    [cart],
+      products
+        .filter((p) => (filter === "সব" ? true : p.category === filter))
+        .filter((p) => (inStockOnly ? p.stock > 0 : true)),
+    [filter, inStockOnly],
   );
 
-  const count = lines.reduce((n, l) => n + l.qty, 0);
-  const subtotal = lines.reduce((n, l) => n + l.qty * l.product.price, 0);
-  const shipping = count === 0 || subtotal >= FREE_SHIPPING ? 0 : DELIVERY_FEE;
-
-  const add = (id: string, name: string) => {
-    setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-    toast.success(`${name} ব্যাগে যোগ হয়েছে`);
-  };
-
-  const setQty = (id: string, qty: number) =>
-    setCart((c) => {
-      if (qty <= 0) {
-        const { [id]: _drop, ...rest } = c;
-        return rest;
-      }
-      return { ...c, [id]: qty };
-    });
+  const remainingForFree = Math.max(0, FREE_SHIPPING - subtotal);
+  const progress = Math.min(100, Math.round((subtotal / FREE_SHIPPING) * 100));
 
   const placeOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,22 +89,59 @@ function Storefront() {
       setErrors(next);
       return;
     }
+
+    const overStock = lines.find((l) => l.qty > l.product.stock || l.product.stock <= 0);
+    if (overStock) {
+      setErrors({
+        stock: `${overStock.product.name} — স্টকে আছে ${bn(overStock.product.stock)}টি। পরিমাণ ঠিক করে আবার চেষ্টা করুন।`,
+      });
+      return;
+    }
+
+    const order: PlacedOrder = {
+      id: orderId(),
+      createdAt: new Date().toISOString(),
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      address: parsed.data.address,
+      ...(parsed.data.notes ? { notes: parsed.data.notes } : {}),
+      items: lines.map((l) => ({
+        name: l.product.name,
+        qty: l.qty,
+        price: l.product.price,
+        weight: l.product.weight,
+      })),
+      subtotal,
+      shipping,
+      total,
+    };
+
+    try {
+      sessionStorage.setItem(ORDER_KEY, JSON.stringify(order));
+    } catch {
+      /* ignore */
+    }
+
     setErrors({});
-    setCart({});
+    clear();
     setForm({ name: "", phone: "", address: "", notes: "" });
     setCartOpen(false);
-    toast.success("অর্ডার সম্পন্ন হয়েছে — আমরা শীঘ্রই ফোনে কনফার্ম করব।");
+    navigate({ to: "/order/success" });
   };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+        <div className="bg-primary text-primary-foreground">
+          <p className="mx-auto max-w-6xl px-6 py-2 text-center text-xs sm:text-sm">
+            {money(FREE_SHIPPING)} টাকার বেশি অর্ডারে ফ্রি ডেলিভারি · {DELIVERY_TIME} · ক্যাশ অন
+            ডেলিভারি
+          </p>
+        </div>
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
           <a href="#top" className="flex items-center gap-2">
             <Leaf className="size-5 text-primary" aria-hidden="true" />
-            <span className="font-display text-lg font-semibold tracking-tight">
-              HEALTHIO
-            </span>
+            <span className="font-display text-lg font-semibold tracking-tight">HEALTHIO</span>
           </a>
           <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
             <a href="#catalog" className="transition-colors hover:text-foreground">
@@ -151,6 +168,20 @@ function Storefront() {
                   {money(FREE_SHIPPING)} টাকার বেশি অর্ডারে ডেলিভারি ফ্রি।
                 </SheetDescription>
               </SheetHeader>
+
+              <div className="border-b border-border px-4 pb-4">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {remainingForFree === 0
+                    ? "দুর্দান্ত! আপনার ডেলিভারি একদম ফ্রি।"
+                    : `আর ${money(remainingForFree)} টাকার পণ্য যোগ করলে ডেলিভারি ফ্রি।`}
+                </p>
+              </div>
 
               <div className="flex-1 overflow-y-auto px-4">
                 {lines.length === 0 ? (
@@ -190,6 +221,7 @@ function Storefront() {
                               size="icon"
                               className="size-7"
                               aria-label={`${product.name} বাড়ান`}
+                              disabled={qty >= product.stock}
                               onClick={() => setQty(product.id, qty + 1)}
                             >
                               <Plus className="size-3" />
@@ -205,6 +237,11 @@ function Storefront() {
                               <Trash2 className="size-3.5" />
                             </Button>
                           </div>
+                          {qty >= product.stock && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              স্টকে আছে {bn(product.stock)}টি
+                            </p>
+                          )}
                         </div>
                         <p className="text-sm font-semibold">{money(product.price * qty)}</p>
                       </li>
@@ -226,7 +263,7 @@ function Storefront() {
                   <Separator className="my-2" />
                   <div className="flex justify-between text-base font-semibold">
                     <dt>সর্বমোট</dt>
-                    <dd>{money(subtotal + shipping)}</dd>
+                    <dd>{money(total)}</dd>
                   </div>
                 </dl>
                 <Button
@@ -261,8 +298,8 @@ function Storefront() {
               ফ্রেশ ও খাঁটি সিডস, বাদাম আর শুকনো ফল
             </h1>
             <p className="mt-5 max-w-xl text-base text-husk md:text-lg">
-              ফাইবার, প্রোটিন ও ওমেগা-৩ এ ভরপুর ৮টি প্রিমিয়াম আইটেম। স্মুদি, দই বা সালাদের
-              সাথে মিশিয়ে খেতে পারেন প্রতিদিন — Healthio, Fuel Your Day The Natural Way।
+              ফাইবার, প্রোটিন ও ওমেগা-৩ এ ভরপুর ৮টি প্রিমিয়াম আইটেম। স্মুদি, দই বা সালাদের সাথে
+              মিশিয়ে খেতে পারেন প্রতিদিন — Healthio, Fuel Your Day The Natural Way।
             </p>
             <div className="mt-8">
               <Button
@@ -280,8 +317,12 @@ function Storefront() {
         <section className="border-b border-border bg-card">
           <ul className="mx-auto grid max-w-6xl gap-6 px-6 py-8 sm:grid-cols-3">
             {[
-              { icon: Sprout, title: "১০০% খাঁটি ও ফ্রেশ", text: "কোনো ভেজাল বা প্রিজারভেটিভ নেই" },
-              { icon: Truck, title: "সারা দেশে ডেলিভারি", text: "ঢাকায় ২৪ ঘণ্টা, বাইরে ২-৩ দিন" },
+              {
+                icon: Sprout,
+                title: "১০০% খাঁটি ও ফ্রেশ",
+                text: "কোনো ভেজাল বা প্রিজারভেটিভ নেই",
+              },
+              { icon: Truck, title: `${money(FREE_SHIPPING)}+ অর্ডারে ফ্রি ডেলিভারি`, text: DELIVERY_TIME },
               { icon: ShieldCheck, title: "ক্যাশ অন ডেলিভারি", text: "পণ্য হাতে পেয়ে টাকা দিন" },
             ].map((f) => (
               <li key={f.title} className="flex items-start gap-3">
@@ -316,49 +357,23 @@ function Storefront() {
                   {c}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setInStockOnly((v) => !v)}
+                className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${
+                  inStockOnly
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                শুধু স্টকে আছে
+              </button>
             </div>
           </div>
 
           <ul className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((p) => (
-              <li
-                key={p.id}
-                className="group flex flex-col overflow-hidden rounded-sm border border-border bg-card shadow-soft transition-shadow hover:shadow-lift"
-              >
-                <img
-                  src={p.image}
-                  alt={p.name}
-                  loading="lazy"
-                  width={1024}
-                  height={1024}
-                  className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                />
-                <div className="flex flex-1 flex-col p-5">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="text-lg">{p.name}</h3>
-                    <span className="text-base font-semibold">{money(p.price)}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {p.category} · {p.weight}
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">{p.blurb}</p>
-                  <ul className="mt-3 space-y-1 text-xs leading-relaxed text-foreground/70">
-                    {p.benefits.map((b) => (
-                      <li key={b} className="flex gap-2">
-                        <span className="text-primary">•</span>
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    variant="secondary"
-                    className="mt-5 w-full"
-                    onClick={() => add(p.id, p.name)}
-                  >
-                    ব্যাগে যোগ করুন
-                  </Button>
-                </div>
-              </li>
+              <ProductCard key={p.id} product={p} />
             ))}
           </ul>
         </section>
@@ -369,8 +384,8 @@ function Storefront() {
               <p className="label-caps text-muted-foreground">অর্ডার করুন</p>
               <h2 className="mt-2 text-3xl md:text-4xl">ঠিকানাটা জানিয়ে দিন</h2>
               <p className="mt-4 max-w-md text-sm text-muted-foreground">
-                অর্ডার পাওয়ার পর আমরা ফোনে কনফার্ম করে পণ্য প্যাক করি। {money(FREE_SHIPPING)}{" "}
-                টাকার বেশি অর্ডারে সারা দেশে ডেলিভারি একদম ফ্রি।
+                অর্ডার পাওয়ার পর আমরা ফোনে কনফার্ম করে পণ্য প্যাক করি। {money(FREE_SHIPPING)} টাকার
+                বেশি অর্ডারে সারা দেশে ডেলিভারি একদম ফ্রি। ডেলিভারি সময়: {DELIVERY_TIME}।
               </p>
 
               <div className="mt-8 rounded-sm border border-border bg-card p-5">
@@ -389,10 +404,14 @@ function Storefront() {
                         <span>{money(product.price * qty)}</span>
                       </li>
                     ))}
+                    <li className="flex justify-between text-muted-foreground">
+                      <span>ডেলিভারি চার্জ</span>
+                      <span>{shipping === 0 ? "ফ্রি" : money(shipping)}</span>
+                    </li>
                     <Separator className="my-2" />
                     <li className="flex justify-between font-semibold">
                       <span>সর্বমোট</span>
-                      <span>{money(subtotal + shipping)}</span>
+                      <span>{money(total)}</span>
                     </li>
                   </ul>
                 )}
@@ -449,11 +468,15 @@ function Storefront() {
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   />
                 </div>
+                {errors['stock'] && (
+                  <p className="text-xs text-destructive">{errors['stock']}</p>
+                )}
                 <Button type="submit" size="lg" className="w-full" disabled={lines.length === 0}>
-                  {lines.length === 0
-                    ? "আগে পণ্য যোগ করুন"
-                    : `অর্ডার কনফার্ম করুন · ${money(subtotal + shipping)}`}
+                  {lines.length === 0 ? "আগে পণ্য যোগ করুন" : `অর্ডার কনফার্ম করুন · ${money(total)}`}
                 </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  পেমেন্ট ক্যাশ অন ডেলিভারিতে · আনুমানিক ডেলিভারি {DELIVERY_TIME}
+                </p>
               </div>
             </form>
           </div>
